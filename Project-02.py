@@ -32,11 +32,33 @@
     <valid?> has the value 'Y' if the tag is one of the supported tags or 'N' otherwise.  The set of all valid tags for our project is specified in the Project Overview document.
     <arguments> is the rest of the line beyond the level and tag.
 """
+#So if we wanna use a dict, the tag must be the key. we cannot use args for keys because we dont know what args will be
+#we cant use level for key because each level can have multiple tags
+dict = {
+        'NOTE':'0',
+        'HEAD':'0',
+        'TRLR':'0',
+        'FAM':'0',
+        'INDI':'0',
+        'BIRT':'1',
+        'DEAT':'1',
+        'MARR':'1',
+        'DIV':'1',
+        'HUSB':'1',
+        'WIFE':'1',
+        'CHIL':'1',
+        'NAME':'1',
+        'SEX':'1',
+        'FAMC':'1',
+        'FAMS':'1',
+        'DATE':'2'
+    }
 
-fileName = 'test.ged'
+fileName = input("Please enter the filename, including file extension (eg. proj02test.ged): ")
 
 
 chosenFile = open(fileName)
+output = open('output.txt', 'w+')
 #We do not want the script to run if the file is empty, so we will check for this case first
 #If the file is not empty, we will use seek(0) to return to the beginning of the file
 #Then go through the file and read each character, each time a character is used, we will increase its value in the dict
@@ -47,97 +69,47 @@ if not checkFirstLine :
 else :
     chosenFile.seek(0)
     for line in chosenFile :
+        """
+            for each key in the dict, check to see if the key is in the line.
+                *still need the information array to help resolve collisions (since information is an array and not a string, the extra condition ensures that the entire tag is in the line)
+                    **Without this, FAM and FAMC/FAMS behave weirdly because FAM is a string in FAMC/FAMS but FAM is not in an array containing FAMC/FAMS
+            Once a match is found, check for validity by seeing if the value at the key matches the value from the line
+                *have to do an extra check for the special cases (FAM and INDI)
+                    **if these special cases don't have the tag as the last thing on the line, they are not valid
+            We can use the information array to help us separate arguments from tags since we know all lines that don't have FAM or INDI will have the same format
+        """
+
         line = line.rstrip()
-        print('--> ' + line)
-        """
-        now we must go through and get the information we want, and split it up according to above conditions
-        First thought: use split() to get each point of data and then check based on index?
-        potential problems: Arguments are not neccesarily one word, would probably need to keep track of the index manually
-            *Some lines just have less information but are perfectly correct. (eg. 0 HEAD)
-                **Lets handle these first!
-        if we keep track of it manually we can use a loop to make sure we always reach the end of the line.
-        first item should always be <level>.
-            *level = information[0]
-        second item should be <id> OR <tag>
-            *IF level = 0, check for id
-                **how to check for id? id could be anything
-                **could check for tags, we know what tags to be expecting, if none of them are in the second position, second position must be id
-                **could also check to see if the third position is a tag INDI or FAM <-- lets do this one
-            *IF level is not 0, this will be the tag
-        """
+        output.write('--> ' + line+'\n')
         information = line.split()
         level = information[0]
-        length = len(information)
-        #print(length)
-        #print (level)
+        keys = dict.keys()
 
-        #SPLIT IT UP BY LEVELS FIRST
-        if (level == '0') :
-            if ((information[1] == 'NOTE') or (information[1] == 'HEAD') or (information[1] == 'TRLR')) :
-                tag = information[1]
-                args = ''
-                for i in information[2:] :
-                    args += i + ' '
+        for key in keys :
+            if key in line and dict[key] == level and key in information :
+                if (key == 'INDI' or key == 'FAM') :
+                    if line.endswith(key) :
+                        valid = 'Y'
+                        tag = key
+                        args = information[1]
+                        break
 
-                print('<-- '+level + '|'+tag+'|Y|'+args)
+                    else :
+                        valid = 'N'
+                        tag = key
+                        args = line.split(tag,1)[1].lstrip()
+                        break
 
-            elif ((information[2] == 'FAM') or (information[2] == 'INDI')) :
-                args = information[1]
-                tag = information[2]
-                print('<-- '+level + '|'+tag+'|Y|'+args)
-
-            else :
-                tag = information[1]
-                args = ''
-                for i in information[2:] :
-                    args += i + ' '
-
-                print('<-- '+level + '|'+tag+'|N|'+args)
-
-        elif (level == '1') :
-            if (information[1] == 'BIRT' or information[1] == 'DEAT' or information[1] == 'MARR' or information[1] == 'DIV') :
-                tag = information [1]
-                args = ''
-                print('<-- '+level + '|'+tag+'|Y|'+args)
-
-            elif (information[1] == 'HUSB' or information[1] == 'WIFE' or information[1] == 'CHIL'
-             or information[1] == 'NAME' or information[1] == 'SEX' or information[1] == 'FAMC' or information[1] == 'FAMS') :
-                tag = information[1]
-                args = ''
-                for i in information[2:] :
-                    args += i + ' '
-
-                print('<-- '+level + '|'+tag+'|Y|'+args)
+                valid = 'Y'
+                tag = key
+                args = line.split(tag,1)[1].lstrip()
+                break
 
             else :
+                valid = 'N'
                 tag = information[1]
                 args = ''
                 for i in information[2:] :
                     args += i + ' '
 
-                print('<-- '+level + '|'+tag+'|N|'+args)
-
-        elif (level == '2') :
-            if (information[1] == 'DATE') :
-                tag = information[1]
-                args = ''
-                for i in information[2:] :
-                    args += i + ' '
-
-                print('<-- '+level + '|'+tag+'|Y|'+args)
-
-            else :
-                tag = information[1]
-                args = ''
-                for i in information[2:] :
-                    args += i + ' '
-
-                print('<-- '+level + '|'+tag+'|N|'+args)
-
-        else :
-            tag = information[1]
-            args = ''
-            for i in information[2:] :
-                args += i + ' '
-
-            print('<-- '+level + '|'+tag+'|N|'+args)
+        output.write('<-- '+level + '|'+tag+'|'+ valid +'|' + args + '\n')
